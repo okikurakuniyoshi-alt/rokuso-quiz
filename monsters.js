@@ -72,6 +72,25 @@
       ${eye(40,58,7)}${eye(60,58,7)}
       <path d="M38 72 Q50 80 62 72" stroke="${d}" stroke-width="3" fill="none"/>
       <path d="M42 70 l3 6 3-6Z" fill="#fff"/><path d="M52 70 l3 6 3-6Z" fill="#fff"/>`),
+    overlord: (c, d) => wrap(`
+      <path d="M20 34 Q6 10 12 4 Q30 14 32 30Z" fill="${d}"/><path d="M80 34 Q94 10 88 4 Q70 14 68 30Z" fill="${d}"/>
+      <path d="M22 46 Q18 18 50 18 Q82 18 78 46 Q86 70 60 80 L40 80 Q14 70 22 46Z" fill="${c}" stroke="${d}" stroke-width="3"/>
+      <path d="M14 56 Q2 60 6 74 Q16 66 24 62Z" fill="${d}" opacity="0.8"/><path d="M86 56 Q98 60 94 74 Q84 66 76 62Z" fill="${d}" opacity="0.8"/>
+      <path d="M32 44 l16 8 -16 6Z" fill="#ffd24b"/><path d="M68 44 l-16 8 16 6Z" fill="#ffd24b"/>
+      <circle cx="42" cy="50" r="4" fill="#fff"/><circle cx="58" cy="50" r="4" fill="#fff"/>
+      <path d="M34 64 Q50 56 66 64 L62 72 58 64 54 72 50 64 46 72 42 64 38 72Z" fill="#fff" stroke="${d}"/>`),
+    titan: (c, d) => wrap(`
+      <rect x="16" y="40" width="16" height="34" rx="6" fill="${d}"/><rect x="68" y="40" width="16" height="34" rx="6" fill="${d}"/>
+      <path d="M28 40 Q26 20 50 20 Q74 20 72 40 Q78 70 56 78 L44 78 Q22 70 28 40Z" fill="${c}" stroke="${d}" stroke-width="3"/>
+      <path d="M30 30 L24 18 L40 28Z" fill="${d}"/><path d="M70 30 L76 18 L60 28Z" fill="${d}"/>
+      <rect x="34" y="44" width="12" height="6" rx="2" fill="#fff"/><rect x="54" y="44" width="12" height="6" rx="2" fill="#fff"/>
+      <circle cx="40" cy="47" r="2.5" fill="#c0102a"/><circle cx="60" cy="47" r="2.5" fill="#c0102a"/>
+      <path d="M38 62 h24 M40 62 v8 M48 62 v8 M56 62 v8" stroke="${d}" stroke-width="3"/>`),
+    wraith: (c, d) => wrap(`
+      <path d="M50 14 Q24 18 26 48 Q24 70 16 84 Q30 76 34 84 Q42 74 50 84 Q58 74 66 84 Q70 76 84 84 Q76 70 74 48 Q76 18 50 14Z" fill="${c}" stroke="${d}" stroke-width="3" opacity="0.95"/>
+      <path d="M50 18 Q34 22 34 44 L66 44 Q66 22 50 18Z" fill="#0a0a14"/>
+      <circle cx="43" cy="38" r="5" fill="#ff3b3b"/><circle cx="57" cy="38" r="5" fill="#ff3b3b"/>
+      <path d="M16 60 Q6 64 8 76 M84 60 Q94 64 92 76" stroke="${d}" stroke-width="3" fill="none"/>`),
   };
 
   const DESIGN = {
@@ -94,6 +113,9 @@
     'サイコアスタムドラゴン': ['dragon', '#c060a0', '#7a2f64'],
     'ソラコアームドラゴン': ['dragon', '#e0b840', '#a07f1a'],
     'トゥファイナルボス':   ['boss',   '#c03a3a', '#7a1f1f'],
+    '六層の魔王':       ['overlord', '#7a1f2f', '#3a0a14'],
+    'デスタイタン':     ['titan',    '#4a4f5a', '#1f2229'],
+    'ヴォイドレイス':   ['wraith',   '#2a2f4a', '#0a0c1a'],
   };
 
   window.monsterSVG = function (name) {
@@ -101,4 +123,5 @@
     if (d && T[d[0]]) return T[d[0]](d[1], d[2]);
     return T.shadow('#888', '#555');
   };
+  window.BOSS_LIST = ['六層の魔王', 'デスタイタン', 'ヴォイドレイス'];
 })();

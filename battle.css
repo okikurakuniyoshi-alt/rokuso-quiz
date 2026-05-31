@@ -228,3 +228,13 @@
   25%,75% { opacity: 0.1; }
   50%     { opacity: 1; }
 }
+
+/* ===== 大ボス演出 ===== */
+#monster-emoji.boss-monster {
+  animation: boss-loom 1.6s ease-in-out infinite !important;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 26px rgba(255,40,40,0.7));
+}
+@keyframes boss-loom {
+  0%,100% { transform: scale(1.35) translateY(0); }
+  50%      { transform: scale(1.48) translateY(-4px); }
+}

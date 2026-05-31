@@ -6,6 +6,7 @@ class BattleManager {
     this.onBattleEnd = null;
     this._typeGen = 0;
     this._typeTimer = null;
+    this.isBoss = false;
     this.player = null;
     this.areaId = null;
     this.monster = null;
@@ -28,27 +29,30 @@ class BattleManager {
   }
 
   // main から呼ばれる：そのエリアのモンスターと戦闘開始
-  start(player, areaId, monster, onEnd) {
+  start(player, areaId, monster, onEnd, isBoss) {
     this.player = player;
     this.areaId = areaId;
     this.monster = monster;
     this.onBattleEnd = onEnd;
+    this.isBoss = !!isBoss;
 
     const tier = encounter.getAreaTier(areaId);
     this.areaIndex = tier.index;
-    this.monsterHpMax = tier.monsterHp;
-    this.monsterHp = tier.monsterHp;
-    this.wrongDamage = tier.wrongDamage;
+    this.monsterHpMax = this.isBoss ? tier.monsterHp + 3 : tier.monsterHp;
+    this.monsterHp = this.monsterHpMax;
+    this.wrongDamage = this.isBoss ? tier.wrongDamage + 4 : tier.wrongDamage;
 
     const mEl = document.getElementById('monster-emoji');
     if (window.monsterSVG) mEl.innerHTML = window.monsterSVG(monster);
     else mEl.textContent = encounter.getMonsterEmoji(monster);
-    document.getElementById('monster-name').textContent = monster + this._hpHearts();
+    mEl.classList.toggle('boss-monster', this.isBoss);
+    document.getElementById('monster-name').textContent = (this.isBoss ? '\u2620\ufe0f ' : '') + monster + this._hpHearts();
     document.getElementById('monster-hp-bar').style.width = '100%';
     document.getElementById('monster-hp-bar').style.backgroundColor = 'var(--hp-red)';
 
     this._updatePlayerBar(player);
-    audio.playBattleBGM();
+    if (this.isBoss && audio.playBossBGM) audio.playBossBGM();
+    else audio.playBattleBGM();
     this._nextQuestion();
   }
 
@@ -171,7 +175,7 @@ class BattleManager {
   }
 
   _victory() {
-    const expGain = 25 + this.areaIndex * 8 + this.monsterHpMax * 6 + Math.floor(Math.random() * 10);
+    const expGain = 25 + this.areaIndex * 8 + this.monsterHpMax * 6 + (this.isBoss ? 60 : 0) + Math.floor(Math.random() * 10);
     const text = `🎉 ${this.monster}を　たおした！\n\n経験値　${expGain}　かくとく！`;
     document.getElementById('battle-result-text').textContent = text;
     document.getElementById('battle-result').classList.remove('hidden');

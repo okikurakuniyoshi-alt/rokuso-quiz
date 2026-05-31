@@ -29,6 +29,7 @@ class Player {
     this.x = 5;
     this.y = 5;
     this.defeatedMonsters = {};
+    this.areaEnterCount = 1;
   }
 
   getLevelData() {
@@ -82,7 +83,8 @@ class Player {
       hp: this.hp, hpMax: this.hpMax,
       correctCount: this.correctCount, wrongCount: this.wrongCount,
       areaId: this.areaId, x: this.x, y: this.y,
-      defeatedMonsters: this.defeatedMonsters
+      defeatedMonsters: this.defeatedMonsters,
+      areaEnterCount: this.areaEnterCount
     };
   }
 

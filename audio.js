@@ -636,6 +636,38 @@ class AudioManager {
     playLoop();
   }
 
+  // 大ボス — 不穏で重厚なボステーマ（A minor / 低音）
+  playBossBGM() {
+    if (!this.enabled) return;
+    this.stopBGM();
+    this.currentBGM = 'boss';
+    this._restart = () => this.playBossBGM();
+    const beat = 0.26;
+    const melody = [
+      [220,2],[233,1],[220,1],
+      [196,2],[207,2],
+      [220,2],[174,2],
+      [220,4],
+      [262,2],[247,1],[233,1],
+      [220,2],[207,2],
+      [196,4],
+      [220,4]
+    ];
+    const bass = [
+      [55,4],[58,4],[55,4],[44,4],[55,4],[52,4],[49,4],[55,4]
+    ];
+    const playLoop = () => {
+      if (this.currentBGM !== 'boss') return;
+      const now = this.ctx.currentTime + 0.06;
+      const total = this._playTrack(melody, beat, 'sawtooth', 0.12, now, 0.8);
+      this._playTrack(bass, beat, 'triangle', 0.16, now, 0.95);
+      for (let i = 0; i < 32; i += 2) this._kick(now + i * beat, 0.22);
+      this._note(880, now, beat * 1.5, 'sine', 0.03);
+      this.bgmTimeout = setTimeout(playLoop, total * 1000);
+    };
+    playLoop();
+  }
+
   seEncounter() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;

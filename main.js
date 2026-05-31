@@ -6,6 +6,7 @@ class Game {
     this.player = new Player();
     this.mapManager = new MapManager();
     this.currentScreen = 'title';
+    this.bossPending = false;
   }
 
   showScreen(name) {
@@ -95,13 +96,20 @@ class Game {
   }
 
   _startEncounter() {
-    const monster = encounter.pickMonster(this.player.areaId);
+    let monster, isBoss = false;
+    if (this.bossPending && window.BOSS_LIST && window.BOSS_LIST.length) {
+      monster = window.BOSS_LIST[Math.floor(Math.random() * window.BOSS_LIST.length)];
+      isBoss = true;
+      this.bossPending = false;
+    } else {
+      monster = encounter.pickMonster(this.player.areaId);
+    }
     if (!monster) return;
     this._flashEncounter(() => {
       audio.seEncounter();
       this.mapManager.stop();
       this.showScreen('battle');
-      battle.start(this.player, this.player.areaId, monster, (result) => this._onBattleEnd(result));
+      battle.start(this.player, this.player.areaId, monster, (result) => this._onBattleEnd(result), isBoss);
     });
   }
 
@@ -144,9 +152,15 @@ class Game {
     const nextArea = areas[(curIdx + 1) % areas.length];
     this.player.areaId = nextArea.id;
     this.player.x = 5; this.player.y = 5;
+    this.player.areaEnterCount = (this.player.areaEnterCount || 1) + 1;
+    this.bossPending = (this.player.areaEnterCount % 3 === 0);
     Storage.save(this.player.toSaveData());
     audio.seWarp();
-    this._showFieldMsg(`${nextArea.name}に　はいった！`);
+    if (this.bossPending) {
+      this._showFieldMsg(`${nextArea.name}に　はいった！\n\n☠️ つよい　きはいを　かんじる……`, 3200);
+    } else {
+      this._showFieldMsg(`${nextArea.name}に　はいった！`);
+    }
   }
 
   _openTreasure() {
