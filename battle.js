@@ -4,6 +4,8 @@ class BattleManager {
     this.currentQuiz = null;
     this.answered = false;
     this.onBattleEnd = null;
+    this._typeGen = 0;
+    this._typeTimer = null;
     this.player = null;
     this.areaId = null;
     this.monster = null;
@@ -71,12 +73,19 @@ class BattleManager {
     this._typeWriter(qt, this.currentQuiz.question, () => this._showChoices(this.currentQuiz));
   }
 
-  _typeWriter(el, text, cb, i = 0) {
-    if (i === 0) el.textContent = '';
-    if (i < text.length) {
-      el.textContent += text[i];
-      setTimeout(() => this._typeWriter(el, text, cb, i + 1), 30);
-    } else if (cb) cb();
+  _typeWriter(el, text, cb) {
+    const gen = ++this._typeGen;
+    if (this._typeTimer) { clearTimeout(this._typeTimer); this._typeTimer = null; }
+    el.textContent = '';
+    let i = 0;
+    const step = () => {
+      if (gen !== this._typeGen) return; // 新しい問題が来たら中断
+      if (i < text.length) {
+        el.textContent += text[i++];
+        this._typeTimer = setTimeout(step, 30);
+      } else if (cb) cb();
+    };
+    step();
   }
 
   _showChoices(quiz) {
@@ -152,7 +161,9 @@ class BattleManager {
     }
     document.getElementById('battle-result-text').textContent = text;
     document.getElementById('battle-result').classList.remove('hidden');
-    document.getElementById('btn-result-ok').onclick = () => {
+    const okBtn = document.getElementById('btn-result-ok');
+    okBtn.onclick = () => {
+      okBtn.onclick = null;
       document.getElementById('battle-result').classList.add('hidden');
       this._nextQuestion();
     };
@@ -163,7 +174,9 @@ class BattleManager {
     const text = `🎉 ${this.monster}を　たおした！\n\n経験値　${expGain}　かくとく！`;
     document.getElementById('battle-result-text').textContent = text;
     document.getElementById('battle-result').classList.remove('hidden');
-    document.getElementById('btn-result-ok').onclick = () => {
+    const okBtn = document.getElementById('btn-result-ok');
+    okBtn.onclick = () => {
+      okBtn.onclick = null;
       document.getElementById('battle-result').classList.add('hidden');
       this.onBattleEnd({ result: 'win', expGain, monster: this.monster });
     };

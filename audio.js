@@ -7,21 +7,49 @@ class AudioManager {
     this.bgmTimeout = null;
     this.enabled = true;
     this.currentBGM = null;
+    this.unlocked = false;
+    this._restart = null;
   }
 
   init() {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.25;
+      this.masterGain.gain.value = 0.30;
       this.masterGain.connect(this.ctx.destination);
     } catch(e) {
       this.enabled = false;
+      return;
+    }
+    // iOS/モバイル: 最初のタップ操作の中でオーディオを解錠する
+    const unlockOnce = () => this.unlock();
+    ['touchend', 'touchstart', 'mousedown', 'pointerdown', 'keydown', 'click'].forEach(ev => {
+      document.addEventListener(ev, unlockOnce, { passive: true });
+    });
+  }
+
+  // iOSのオーディオ制限を解除（ジェスチャ内で呼ぶ）
+  unlock() {
+    if (!this.enabled) return;
+    if (!this.ctx) this.init();
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.unlocked && this.ctx) {
+      try {
+        const b = this.ctx.createBuffer(1, 1, 22050);
+        const src = this.ctx.createBufferSource();
+        src.buffer = b;
+        src.connect(this.ctx.destination);
+        src.start(0);
+      } catch (e) {}
+      this.unlocked = true;
+      // 解錠できたら現在のBGMを鳴らし直す
+      if (this._restart) setTimeout(() => { if (this._restart) this._restart(); }, 80);
     }
   }
 
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    this.unlock();
   }
 
   _note(freq, start, dur, type = 'square', vol = 0.3) {
@@ -50,6 +78,34 @@ class AudioManager {
     return t - when;
   }
 
+  // ドラム: キック
+  _kick(start, vol) {
+    if (!this.enabled || !this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.connect(g); g.connect(this.masterGain);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, start);
+    o.frequency.exponentialRampToValueAtTime(48, start + 0.12);
+    g.gain.setValueAtTime(vol || 0.3, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
+    o.start(start); o.stop(start + 0.17);
+  }
+
+  // ドラム: スネア（ノイズ）
+  _snare(start, vol) {
+    if (!this.enabled || !this.ctx) return;
+    const dur = 0.13;
+    const len = Math.floor(this.ctx.sampleRate * dur);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const g = this.ctx.createGain(); g.gain.value = vol || 0.13;
+    src.connect(g); g.connect(this.masterGain);
+    src.start(start); src.stop(start + dur);
+  }
+
   stopBGM() {
     if (this.bgmInterval) { clearInterval(this.bgmInterval); this.bgmInterval = null; }
     if (this.bgmTimeout) { clearTimeout(this.bgmTimeout); this.bgmTimeout = null; }
@@ -59,6 +115,7 @@ class AudioManager {
   // エリアIDに応じたフィールドBGMを再生
   playAreaBGM(areaId) {
     if (!this.enabled) return;
+    this._restart = () => this.playAreaBGM(areaId);
     const bgmMap = {
       area_01: () => this.playFieldBGM(),
       area_02: () => this._playCaveBGM(),
@@ -86,38 +143,40 @@ class AudioManager {
     if (!this.enabled) return;
     this.stopBGM();
     this.currentBGM = 'field';
-    // 六層序曲 — 堂々としたドラクエ風オーバーチュア（G major）
-    const beat = 0.34;
+    this._restart = () => this.playFieldBGM();
+    // 六層序曲 — 勇壮なファンファーレ（G major）
+    const beat = 0.32;
     const melody = [
-      [392,2],[587,2],
-      [523,1],[494,1],[523,1],[587,1],
-      [494,2],[440,2],
-      [392,4],
-      [440,2],[523,2],
+      [392,1],[494,1],[587,1],[784,1],
+      [740,2],[659,2],
+      [587,1],[659,1],[587,1],[523,1],
+      [494,4],
+      [523,1],[587,1],[659,1],[740,1],
+      [784,2],[659,2],
       [587,1],[523,1],[494,1],[440,1],
-      [494,2],[587,2],
       [392,4]
     ];
     const harmony = [
-      [294,2],[440,2],
-      [392,1],[392,1],[392,1],[440,1],
-      [370,2],[330,2],
-      [294,4],
-      [330,2],[392,2],
+      [294,1],[392,1],[440,1],[587,1],
+      [587,2],[523,2],
+      [440,1],[523,1],[440,1],[392,1],
+      [392,4],
+      [392,1],[440,1],[523,1],[587,1],
+      [587,2],[523,2],
       [440,1],[392,1],[370,1],[330,1],
-      [370,2],[440,2],
       [294,4]
     ];
     const bass = [
-      [196,2],[147,2],[131,2],[196,2],[165,2],[147,2],[196,2],[196,2],
-      [220,2],[131,2],[147,2],[196,2],[165,2],[147,2],[196,2],[196,2]
+      [196,2],[196,2],[247,2],[262,2],[262,2],[247,2],[220,2],[196,2],
+      [131,2],[147,2],[196,2],[247,2],[262,2],[247,2],[220,2],[196,2]
     ];
     const playLoop = () => {
       if (this.currentBGM !== 'field') return;
-      const now = this.ctx.currentTime + 0.05;
+      const now = this.ctx.currentTime + 0.06;
       const total = this._playTrack(melody, beat, 'square', 0.16, now, 0.9);
       this._playTrack(harmony, beat, 'triangle', 0.07, now, 0.95);
-      this._playTrack(bass, beat, 'triangle', 0.12, now, 0.98);
+      this._playTrack(bass, beat, 'triangle', 0.13, now, 0.98);
+      for (let i = 0; i < 32; i += 4) this._kick(now + i * beat, 0.14);
       this.bgmTimeout = setTimeout(playLoop, total * 1000);
     };
     playLoop();
@@ -504,44 +563,42 @@ class AudioManager {
     if (!this.enabled) return;
     this.stopBGM();
     this.currentBGM = 'battle';
-    // 魔物との対決 — 疾走感のあるバトルテーマ（A minor）
-    const beat = 0.155;
+    this._restart = () => this.playBattleBGM();
+    // 魔物との対決 — ドラム入りの疾走バトルテーマ（A minor）
+    const beat = 0.15;
     const melody = [
-      [440,1],[523,1],[659,1],[523,1],
-      [440,1],[523,1],[659,1],[698,1],
-      [659,1],[587,1],[523,1],[494,1],
-      [440,2],[0,2],
-      [440,1],[523,1],[659,1],[523,1],
-      [440,1],[659,1],[880,1],[659,1],
+      [440,1],[523,1],[659,1],[880,1],
+      [784,1],[659,1],[587,1],[523,1],
+      [494,1],[587,1],[494,1],[440,1],
+      [330,2],[440,2],
+      [440,1],[523,1],[659,1],[880,1],
+      [988,1],[880,1],[784,1],[659,1],
       [698,1],[659,1],[587,1],[523,1],
-      [440,2],[0,2]
+      [440,4]
     ];
     const arp = [
       [440,1],[523,1],[659,1],[523,1],
       [440,1],[523,1],[659,1],[523,1],
       [392,1],[494,1],[587,1],[494,1],
+      [330,1],[415,1],[494,1],[415,1],
       [440,1],[523,1],[659,1],[523,1],
-      [440,1],[523,1],[659,1],[523,1],
-      [440,1],[523,1],[659,1],[523,1],
+      [493,1],[587,1],[740,1],[587,1],
       [349,1],[440,1],[523,1],[440,1],
       [440,1],[523,1],[659,1],[523,1]
     ];
-    const bass = [
-      [110,1],[110,1],[110,1],[110,1],
-      [110,1],[110,1],[110,1],[110,1],
-      [98,1],[98,1],[98,1],[98,1],
-      [110,1],[110,1],[110,1],[110,1],
-      [110,1],[110,1],[110,1],[110,1],
-      [110,1],[110,1],[110,1],[110,1],
-      [87,1],[87,1],[87,1],[87,1],
-      [110,1],[110,1],[110,1],[110,1]
-    ];
+    const bassRoots = [110,110,110,110, 98,98,98,98, 87,87,87,87, 110,110,110,110, 110,110,110,110, 82,82,82,82, 87,87,87,87, 110,110,110,110];
+    const bass = bassRoots.map(r => [r, 1]);
     const playLoop = () => {
       if (this.currentBGM !== 'battle') return;
-      const now = this.ctx.currentTime + 0.05;
-      const total = this._playTrack(melody, beat, 'square', 0.14, now, 0.85);
+      const now = this.ctx.currentTime + 0.06;
+      const total = this._playTrack(melody, beat, 'square', 0.15, now, 0.85);
       this._playTrack(arp, beat, 'triangle', 0.06, now, 0.7);
-      this._playTrack(bass, beat, 'sawtooth', 0.10, now, 0.6);
+      this._playTrack(bass, beat, 'sawtooth', 0.11, now, 0.6);
+      for (let i = 0; i < 32; i++) {
+        const tt = now + i * beat;
+        if (i % 2 === 0) this._kick(tt, 0.26);
+        else this._snare(tt, 0.11);
+      }
       this.bgmTimeout = setTimeout(playLoop, total * 1000);
     };
     playLoop();
