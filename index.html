@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a1a">
+  <meta name="description" content="六層手技の解剖学をドラクエ風RPGで楽しく学ぶクイズアプリ">
+  <!-- iPhone: ホーム画面に追加するとフルスクリーンのアプリとして起動 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="六層クイズ">
+  <title>六層クイズアドベンチャー</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/battle.css">
+</head>
+<body>
+
+  <!-- ===== タイトル画面 ===== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-bg">
+      <div class="stars"></div>
+      <div class="title-content">
+        <div class="title-logo">
+          <div class="title-sub">〜解剖学の冒険〜</div>
+          <h1 class="title-main">六層<br>クイズ<br>アドベン<br>チャー</h1>
+        </div>
+        <div class="title-hero">🧑‍⚕️</div>
+        <div class="title-buttons">
+          <button id="btn-new-game" class="dq-btn pulse">はじめから</button>
+          <button id="btn-continue" class="dq-btn">つづきから</button>
+        </div>
+        <div class="title-version">Ver 1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 名前入力画面 ===== -->
+  <div id="screen-name" class="screen">
+    <div class="name-content">
+      <div class="dq-window">
+        <p class="dq-text">あなたの　なまえを　いれてください。</p>
+        <input id="player-name-input" class="dq-input" type="text" maxlength="8" placeholder="なまえ">
+        <button id="btn-name-ok" class="dq-btn">けってい</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== フィールドマップ画面 ===== -->
+  <div id="screen-field" class="screen">
+    <div id="status-bar">
+      <div id="status-left">
+        <span id="stat-name">名前</span>
+        <span id="stat-level">Lv.1</span>
+      </div>
+      <div id="status-right">
+        <span class="stat-label">HP</span>
+        <div id="hp-bar-container">
+          <div id="hp-bar"></div>
+        </div>
+        <span id="stat-hp">20/20</span>
+      </div>
+    </div>
+
+    <canvas id="map-canvas"></canvas>
+
+    <div id="field-message" class="dq-window hidden">
+      <p id="field-message-text"></p>
+    </div>
+
+    <div id="dpad-controls">
+      <div id="dpad">
+        <button class="dpad-btn" id="btn-up" aria-label="上">▲</button>
+        <div class="dpad-middle">
+          <button class="dpad-btn" id="btn-left" aria-label="左">◀</button>
+          <div class="dpad-center"></div>
+          <button class="dpad-btn" id="btn-right" aria-label="右">▶</button>
+        </div>
+        <button class="dpad-btn" id="btn-down" aria-label="下">▼</button>
+      </div>
+      <div id="field-actions">
+        <button id="btn-book" class="action-btn">📖図鑑</button>
+        <button id="btn-menu" class="action-btn">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== バトル画面 ===== -->
+  <div id="screen-battle" class="screen">
+    <div id="battle-bg">
+      <div id="battle-top">
+        <div id="monster-area">
+          <div id="monster-emoji"></div>
+          <div id="monster-name"></div>
+          <div id="monster-hp-bar-container">
+            <div id="monster-hp-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="battle-bottom">
+        <div class="dq-window" id="question-box">
+          <p id="question-text"></p>
+        </div>
+        <div id="choices-area">
+          <button class="choice-btn" id="choice-0"></button>
+          <button class="choice-btn" id="choice-1"></button>
+          <button class="choice-btn" id="choice-2"></button>
+          <button class="choice-btn" id="choice-3"></button>
+        </div>
+        <div id="player-battle-status">
+          <span id="battle-player-name"></span>
+          <div id="battle-hp-bar-container">
+            <div id="battle-hp-bar"></div>
+          </div>
+          <span id="battle-hp-text"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="battle-result" class="hidden">
+      <div class="dq-window">
+        <p id="battle-result-text"></p>
+        <button id="btn-result-ok" class="dq-btn">つぎへ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== レベルアップ画面 ===== -->
+  <div id="screen-levelup" class="screen">
+    <div class="levelup-content">
+      <div class="dq-window">
+        <div class="levelup-title">⭐ レベルアップ！ ⭐</div>
+        <div id="levelup-info"></div>
+        <div id="shisho-word-box" class="hidden">
+          <div class="shisho-label">🌿 師匠の言葉</div>
+          <p id="shisho-word-text"></p>
+        </div>
+        <button id="btn-levelup-ok" class="dq-btn">よし！</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ゲームオーバー画面 ===== -->
+  <div id="screen-gameover" class="screen">
+    <div class="gameover-content">
+      <div class="gameover-title">ゲームオーバー</div>
+      <p class="gameover-text">ちからつきて<br>たおれてしまった……</p>
+      <button id="btn-retry" class="dq-btn">もういちど</button>
+    </div>
+  </div>
+
+  <!-- ===== 図鑑画面 ===== -->
+  <div id="screen-book" class="screen">
+    <div id="book-content">
+      <div class="dq-window">
+        <h2 class="book-title">📖 図鑑・進捗</h2>
+        <div id="book-tabs">
+          <button class="book-tab active" id="tab-monster" onclick="switchBookTab('monster')">&#x1F47E; モンスター</button>
+          <button class="book-tab" id="tab-progress" onclick="switchBookTab('progress')">&#x1F4CA; 学習進捗</button>
+        </div>
+        <!-- モンスター図鑑 -->
+        <div id="book-panel-monster">
+          <div id="book-list"></div>
+        </div>
+        <!-- 学習進捗 -->
+        <div id="book-panel-progress" class="hidden">
+          <div id="progress-stats"></div>
+          <div id="progress-areas"></div>
+        </div>
+        <button id="btn-book-close" class="dq-btn">もどる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- エンカウントフラッシュ -->
+  <div id="encounter-flash" class="hidden"></div>
+
+  <script src="data/gamedata.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/encounter.js"></script>
+  <script src="js/battle.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
