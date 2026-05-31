@@ -7,7 +7,9 @@
 #battle-bg {
   width: 100%; height: 100%;
   display: flex; flex-direction: column;
-  background: linear-gradient(180deg, #0a0a2a 0%, #1a0a0a 100%);
+  background:
+    radial-gradient(140% 70% at 50% 0%, rgba(150,200,255,0.22), rgba(150,200,255,0) 55%),
+    linear-gradient(180deg, #16273b 0%, #1b3550 22%, #1f3f33 50%, #285236 70%, #356b40 100%);
 }
 
 /* Top area: Monster */
@@ -17,11 +19,28 @@
   position: relative;
   overflow: hidden;
 }
+/* 遠景の木立シルエット */
 #battle-top::before {
   content: '';
-  position: absolute; bottom: 0; left: 0; right: 0;
-  height: 40%;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
+  position: absolute; left: 0; right: 0; bottom: 30%;
+  height: 46%;
+  background:
+    radial-gradient(closest-side, rgba(10,30,18,0.95) 70%, transparent) 5% 65%/90px 120px no-repeat,
+    radial-gradient(closest-side, rgba(8,26,16,0.95) 70%, transparent) 24% 52%/120px 155px no-repeat,
+    radial-gradient(closest-side, rgba(10,30,18,0.95) 70%, transparent) 46% 64%/100px 130px no-repeat,
+    radial-gradient(closest-side, rgba(8,26,16,0.95) 70%, transparent) 70% 52%/130px 160px no-repeat,
+    radial-gradient(closest-side, rgba(10,30,18,0.95) 70%, transparent) 92% 64%/95px 125px no-repeat;
+  filter: blur(2px);
+  pointer-events: none;
+}
+/* 足元の草地 */
+#battle-top::after {
+  content: '';
+  position: absolute; left: 50%; bottom: -8%;
+  transform: translateX(-50%);
+  width: 170%; height: 48%;
+  background: radial-gradient(ellipse at 50% 38%, #3f7a47 0%, #2c5836 45%, rgba(20,40,25,0) 72%);
+  pointer-events: none;
 }
 
 #monster-area {
@@ -29,10 +48,20 @@
   align-items: center; gap: 8px;
   z-index: 1;
 }
+#monster-area { position: relative; }
+#monster-area::after {
+  content: '';
+  position: absolute; left: 50%; bottom: -10px;
+  transform: translateX(-50%);
+  width: 90px; height: 16px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 50%;
+  filter: blur(2px);
+}
 #monster-emoji {
-  font-size: 80px;
+  font-size: 92px;
   animation: monster-idle 1.5s ease-in-out infinite;
-  filter: drop-shadow(0 0 20px rgba(255,100,100,0.4));
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(255,100,100,0.35));
 }
 @keyframes monster-idle {
   0%,100% { transform: translateY(0) scale(1); }
@@ -63,6 +92,29 @@
   40%     { transform: translateX(12px); filter: brightness(2); }
   60%     { transform: translateX(-6px); }
   80%     { transform: translateX(6px); }
+}
+
+/* 主人公（手前で魔物と対峙） */
+#battle-hero {
+  position: absolute; left: 50%; bottom: 4%;
+  transform: translateX(-50%);
+  font-size: 50px;
+  z-index: 2;
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,0.55));
+  animation: hero-idle 2.2s ease-in-out infinite;
+}
+#battle-hero::after {
+  content: '';
+  position: absolute; left: 50%; bottom: -8px;
+  transform: translateX(-50%);
+  width: 44px; height: 11px;
+  background: rgba(0,0,0,0.38);
+  border-radius: 50%;
+  filter: blur(2px);
+}
+@keyframes hero-idle {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50%      { transform: translateX(-50%) translateY(-3px); }
 }
 
 /* Battle Bottom */

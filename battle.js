@@ -40,8 +40,9 @@ class BattleManager {
     this.monsterHp = tier.monsterHp;
     this.wrongDamage = tier.wrongDamage;
 
-    const emoji = encounter.getMonsterEmoji(monster);
-    document.getElementById('monster-emoji').textContent = emoji;
+    const mEl = document.getElementById('monster-emoji');
+    if (window.monsterSVG) mEl.innerHTML = window.monsterSVG(monster);
+    else mEl.textContent = encounter.getMonsterEmoji(monster);
     document.getElementById('monster-name').textContent = monster + this._hpHearts();
     document.getElementById('monster-hp-bar').style.width = '100%';
     document.getElementById('monster-hp-bar').style.backgroundColor = 'var(--hp-red)';

@@ -605,6 +605,37 @@ class AudioManager {
   }
 
   // エンカウント音
+  // レベルアップ（師匠の言葉）— 荘厳で神聖な賛歌（C major）
+  playLevelUpBGM() {
+    if (!this.enabled) return;
+    this.stopBGM();
+    this.currentBGM = 'levelup';
+    this._restart = () => this.playLevelUpBGM();
+    const beat = 0.5;
+    const melody = [
+      [523,2],[659,2],[784,2],[1047,2],
+      [988,4],
+      [880,2],[784,2],
+      [659,4],
+      [698,2],[784,2],[880,2],[784,2],
+      [659,4],
+      [523,4]
+    ];
+    const pad = [
+      [262,4],[330,4],[392,4],[262,4],[349,4],[392,4],[330,4],[262,4],[262,4]
+    ];
+    const bell = [0, 8, 16, 24, 32];
+    const playLoop = () => {
+      if (this.currentBGM !== 'levelup') return;
+      const now = this.ctx.currentTime + 0.06;
+      const total = this._playTrack(melody, beat, 'triangle', 0.13, now, 0.98);
+      this._playTrack(pad, beat, 'sine', 0.06, now, 0.99);
+      for (let k = 0; k < bell.length; k++) this._note(2093, now + bell[k] * beat, beat * 1.5, 'sine', 0.04);
+      this.bgmTimeout = setTimeout(playLoop, total * 1000);
+    };
+    playLoop();
+  }
+
   seEncounter() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;

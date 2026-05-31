@@ -172,7 +172,7 @@ class Game {
   }
 
   _showLevelUp(lvResult) {
-    audio.seLevelUp();
+    audio.playLevelUpBGM();
     document.getElementById('levelup-info').innerHTML =
       `Lv <span style="color:var(--win-border)">${lvResult.oldLv}</span> → Lv <span style="color:var(--accent)">${lvResult.newLv}</span><br><br>` +
       `称号：<span style="color:var(--correct)">${lvResult.title}</span><br><br>` +
