@@ -1,15 +1,20 @@
-// battle.js — バトル（クイズ）ロジック
+// battle.js — バトル（クイズ）ロジック ／ モンスターHP制
 class BattleManager {
   constructor() {
     this.currentQuiz = null;
     this.answered = false;
     this.onBattleEnd = null;
+    this.player = null;
+    this.areaId = null;
+    this.monster = null;
+    this.monsterHpMax = 1;
+    this.monsterHp = 1;
+    this.wrongDamage = 5;
+    this.areaIndex = 1;
   }
 
-  // 選択肢をシャッフルして正解インデックスを更新した新しいクイズオブジェクトを返す
   _shuffleQuiz(quiz) {
     const correctText = quiz.choices[quiz.answer];
-    // インデックス付き配列を作ってシャッフル
     const indexed = quiz.choices.map((text, i) => ({ text, i }));
     for (let i = indexed.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -20,40 +25,58 @@ class BattleManager {
     return { ...quiz, choices: shuffledChoices, answer: newAnswer };
   }
 
-  start(quiz, player, onEnd) {
-    // 表示用にシャッフルしたコピーを使う（元データは変更しない）
-    this.currentQuiz = this._shuffleQuiz(quiz);
-    this.answered = false;
+  // main から呼ばれる：そのエリアのモンスターと戦闘開始
+  start(player, areaId, monster, onEnd) {
+    this.player = player;
+    this.areaId = areaId;
+    this.monster = monster;
     this.onBattleEnd = onEnd;
 
-    const area = encounter.getAreaInfo(player.areaId);
-    const emoji = encounter.getMonsterEmoji(quiz.monster);
+    const tier = encounter.getAreaTier(areaId);
+    this.areaIndex = tier.index;
+    this.monsterHpMax = tier.monsterHp;
+    this.monsterHp = tier.monsterHp;
+    this.wrongDamage = tier.wrongDamage;
 
-    // モンスター表示
+    const emoji = encounter.getMonsterEmoji(monster);
     document.getElementById('monster-emoji').textContent = emoji;
-    document.getElementById('monster-name').textContent = quiz.monster;
+    document.getElementById('monster-name').textContent = monster + this._hpHearts();
     document.getElementById('monster-hp-bar').style.width = '100%';
+    document.getElementById('monster-hp-bar').style.backgroundColor = 'var(--hp-red)';
 
-    // 問題表示（タイプライター）
-    this._typeWriter(document.getElementById('question-text'), this.currentQuiz.question, () => {
-      this._showChoices(this.currentQuiz);  // シャッフル済みを使う
-    });
-
-    // プレイヤーHPバー
     this._updatePlayerBar(player);
-
-    // バトルBGM
     audio.playBattleBGM();
+    this._nextQuestion();
+  }
+
+  _hpHearts() {
+    let s = '\n';
+    for (let i = 0; i < this.monsterHpMax; i++) s += (i < this.monsterHp ? '🟥' : '⬛');
+    return s;
+  }
+
+  _nextQuestion() {
+    const quiz = encounter.pickQuizForMonster(this.areaId, this.monster);
+    if (!quiz) { this._victory(); return; }
+    this.currentQuiz = this._shuffleQuiz(quiz);
+    this.answered = false;
+    const qt = document.getElementById('question-text');
+    // 選択肢を一旦隠す
+    for (let i = 0; i < 4; i++) {
+      const btn = document.getElementById(`choice-${i}`);
+      btn.textContent = '';
+      btn.className = 'choice-btn';
+      btn.disabled = true;
+    }
+    this._typeWriter(qt, this.currentQuiz.question, () => this._showChoices(this.currentQuiz));
   }
 
   _typeWriter(el, text, cb, i = 0) {
     if (i === 0) el.textContent = '';
     if (i < text.length) {
       el.textContent += text[i];
-      setTimeout(() => this._typeWriter(el, text, cb, i + 1), 35);
-    } else {
-      if (cb) cb();
-    }
+      setTimeout(() => this._typeWriter(el, text, cb, i + 1), 30);
+    } else if (cb) cb();
   }
 
   _showChoices(quiz) {
@@ -69,11 +92,9 @@ class BattleManager {
   _onAnswer(idx) {
     if (this.answered) return;
     this.answered = true;
-
     const quiz = this.currentQuiz;
     const isCorrect = (idx === quiz.answer);
 
-    // ボタン演出
     for (let i = 0; i < 4; i++) {
       const btn = document.getElementById(`choice-${i}`);
       btn.disabled = true;
@@ -82,21 +103,34 @@ class BattleManager {
     }
 
     if (isCorrect) {
+      this.player.correctCount++;
+      this.monsterHp = Math.max(0, this.monsterHp - 1);
       audio.seCorrect();
       this._showCritical();
-      document.getElementById('monster-emoji').classList.add('monster-hit');
+      const me = document.getElementById('monster-emoji');
+      me.classList.add('monster-hit');
+      const pct = (this.monsterHp / this.monsterHpMax) * 100;
+      document.getElementById('monster-name').textContent = this.monster + this._hpHearts();
       setTimeout(() => {
-        document.getElementById('monster-emoji').classList.remove('monster-hit');
-        document.getElementById('monster-hp-bar').style.width = '0%';
-      }, 500);
-      setTimeout(() => this._showResult(true, quiz), 1200);
+        me.classList.remove('monster-hit');
+        document.getElementById('monster-hp-bar').style.width = pct + '%';
+      }, 400);
+      setTimeout(() => {
+        if (this.monsterHp <= 0) this._victory();
+        else this._interstitial(true, quiz);
+      }, 1100);
     } else {
+      this.player.wrongCount++;
+      const dead = this.player.takeDamage(this.wrongDamage);
       audio.seWrong();
-      document.getElementById('battle-bottom').classList.add('player-hit');
+      const bb = document.getElementById('battle-bottom');
+      bb.classList.add('player-hit');
+      setTimeout(() => bb.classList.remove('player-hit'), 600);
+      this._updatePlayerBar(this.player);
       setTimeout(() => {
-        document.getElementById('battle-bottom').classList.remove('player-hit');
-      }, 600);
-      setTimeout(() => this._showResult(false, quiz), 1200);
+        if (dead) this._defeat();
+        else this._interstitial(false, quiz);
+      }, 1100);
     }
   }
 
@@ -108,32 +142,44 @@ class BattleManager {
     setTimeout(() => el.remove(), 1000);
   }
 
-  _showResult(isCorrect, quiz) {
-    const expGain = isCorrect ? 30 + Math.floor(Math.random() * 20) : 0;
-    const dmg = isCorrect ? 0 : 5;
-
-    let text = '';
+  // 撃破前の途中経過（正解/不正解の後、次の問題へ）
+  _interstitial(isCorrect, quiz) {
+    let text;
     if (isCorrect) {
-      text = `✅ せいかい！\n${quiz.monster}を　たおした！\n\n経験値　${expGain}　かくとく！`;
+      text = `✅ せいかい！\n${this.monster}に　ダメージ！\nのこり　${this.monsterHp}／${this.monsterHpMax}\n\nさらに　こうげきだ！`;
     } else {
-      text = `❌ ちがう……\n${dmg}の　ダメージをうけた！\n\n📖 解説：${quiz.explanation}`;
+      text = `❌ ちがう……\n${this.wrongDamage}の　ダメージをうけた！\n\n📖 ${quiz.explanation}`;
     }
-
     document.getElementById('battle-result-text').textContent = text;
     document.getElementById('battle-result').classList.remove('hidden');
-
     document.getElementById('btn-result-ok').onclick = () => {
       document.getElementById('battle-result').classList.add('hidden');
-      this.onBattleEnd({ isCorrect, expGain, damage: dmg, quiz });
+      this._nextQuestion();
     };
+  }
+
+  _victory() {
+    const expGain = 25 + this.areaIndex * 8 + this.monsterHpMax * 6 + Math.floor(Math.random() * 10);
+    const text = `🎉 ${this.monster}を　たおした！\n\n経験値　${expGain}　かくとく！`;
+    document.getElementById('battle-result-text').textContent = text;
+    document.getElementById('battle-result').classList.remove('hidden');
+    document.getElementById('btn-result-ok').onclick = () => {
+      document.getElementById('battle-result').classList.add('hidden');
+      this.onBattleEnd({ result: 'win', expGain, monster: this.monster });
+    };
+  }
+
+  _defeat() {
+    document.getElementById('battle-result').classList.add('hidden');
+    this.onBattleEnd({ result: 'lose', expGain: 0, monster: this.monster });
   }
 
   _updatePlayerBar(player) {
     document.getElementById('battle-player-name').textContent = player.name;
     const pct = player.hpPercent() * 100;
-    document.getElementById('battle-hp-bar').style.width = pct + '%';
-    document.getElementById('battle-hp-bar').style.backgroundColor =
-      pct > 50 ? 'var(--hp-green)' : pct > 25 ? 'var(--hp-yellow)' : 'var(--hp-red)';
+    const bar = document.getElementById('battle-hp-bar');
+    bar.style.width = pct + '%';
+    bar.style.backgroundColor = pct > 50 ? 'var(--hp-green)' : pct > 25 ? 'var(--hp-yellow)' : 'var(--hp-red)';
     document.getElementById('battle-hp-text').textContent = `${player.hp}/${player.hpMax}`;
   }
 }

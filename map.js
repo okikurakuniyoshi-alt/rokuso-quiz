@@ -6,6 +6,7 @@ const TILE = {
   DEEP:  3,
   WARP:  4,
   WATER: 5,
+  TREASURE: 6,
 };
 
 const TILE_COLORS = {
@@ -15,6 +16,7 @@ const TILE_COLORS = {
   [TILE.DEEP]:  { base:'#1e5c28', accent:'#154520', border:'#267833' },
   [TILE.WARP]:  { base:'#ffd700', accent:'#ccaa00', border:'#ffee44' },
   [TILE.WATER]: { base:'#1565c0', accent:'#0d47a1', border:'#1976d2' },
+  [TILE.TREASURE]: { base:'#8b6f47', accent:'#7a5f3a', border:'#ffd700' },
 };
 
 // エリアマップデータ (20x15 tiles)
@@ -435,13 +437,24 @@ class MapManager {
     this.walkFrame = 0;
     this.onEncounter = null;
     this.onWarp = null;
+    this.onTreasure = null;
+    this.renderX = null;
+    this.renderY = null;
+    this._moveAnim = null;
+    this.treasures = null;
+    this._resizeBound = false;
     this._setupTouchKeys();
   }
 
   init(player) {
     this.player = player;
+    this.renderX = player.x;
+    this.renderY = player.y;
+    this._moveAnim = null;
+    this.moving = false;
+    this._genTreasures();
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+    if (!this._resizeBound) { window.addEventListener('resize', () => this.resize()); this._resizeBound = true; }
     this._startLoop();
   }
 
@@ -451,7 +464,9 @@ class MapManager {
   }
 
   _startLoop() {
+    if (this.animFrame) cancelAnimationFrame(this.animFrame);
     const loop = () => {
+      this._updateMove();
       this._draw();
       this.frameCount++;
       this.animFrame = requestAnimationFrame(loop);
@@ -470,7 +485,7 @@ class MapManager {
 
     const map = MAPS[this.player.areaId] || MAPS['area_01'];
     const rows = map.length, cols = map[0].length;
-    const px = this.player.x, py = this.player.y;
+    const px = (this.renderX != null ? this.renderX : this.player.x), py = (this.renderY != null ? this.renderY : this.player.y);
 
     // カメラ中央
     const camX = px * TILE_SIZE - W / 2 + TILE_SIZE / 2;
@@ -494,6 +509,9 @@ class MapManager {
         this._drawTile(c, t, sx, sy, areaId);
       }
     }
+
+    // 宝箱描画
+    this._drawTreasures(c, camX, camY, W, H);
 
     // プレイヤー描画（中央固定）
     const walkOffset = Math.sin(this.frameCount * 0.3) * 2;
@@ -523,6 +541,17 @@ class MapManager {
         const gy = y + (i * 13 + 5) % TILE_SIZE;
         c.fillRect(gx, gy, 2, 3);
       }
+    }
+    if (type === TILE.DEEP) {
+      c.fillStyle = 'rgba(50,33,16,0.9)';
+      c.fillRect(x + TILE_SIZE / 2 - 3, y + TILE_SIZE / 2 + 4, 6, 12);
+      c.fillStyle = col.border;
+      c.beginPath();
+      c.moveTo(x + TILE_SIZE / 2, y + 6);
+      c.lineTo(x + TILE_SIZE / 2 - 13, y + TILE_SIZE / 2 + 6);
+      c.lineTo(x + TILE_SIZE / 2 + 13, y + TILE_SIZE / 2 + 6);
+      c.closePath();
+      c.fill();
     }
     if (type === TILE.WATER) {
       c.fillStyle = 'rgba(255,255,255,0.1)';
@@ -567,18 +596,85 @@ class MapManager {
     const nx = this.player.x + dx;
     const ny = this.player.y + dy;
     if (!this.canMove(nx, ny)) return;
+    audio.seStep();
+    this.moving = true;
+    this._moveAnim = { x0: this.player.x, y0: this.player.y, x1: nx, y1: ny, t0: performance.now(), dur: 135 };
     this.player.x = nx;
     this.player.y = ny;
-    audio.seStep();
+  }
 
-    const tile = this.getTile(nx, ny);
-    if (tile === TILE.WARP) {
-      if (this.onWarp) this.onWarp();
+  _updateMove() {
+    if (!this._moveAnim) {
+      if (this.renderX == null && this.player) { this.renderX = this.player.x; this.renderY = this.player.y; }
       return;
     }
-    if (this.onEncounter && encounter.checkEncounter(tile)) {
-      setTimeout(() => this.onEncounter(), 200);
+    const a = this._moveAnim;
+    let p = (performance.now() - a.t0) / a.dur;
+    if (p > 1) p = 1;
+    const e = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+    this.renderX = a.x0 + (a.x1 - a.x0) * e;
+    this.renderY = a.y0 + (a.y1 - a.y0) * e;
+    if (p >= 1) {
+      this.renderX = a.x1; this.renderY = a.y1;
+      this._moveAnim = null;
+      this.moving = false;
+      this._arrive(a.x1, a.y1);
     }
+  }
+
+  _arrive(x, y) {
+    const key = x + ',' + y;
+    if (this.treasures && this.treasures.has(key)) {
+      this.treasures.delete(key);
+      audio.seLevelUp();
+      if (this.onTreasure) this.onTreasure();
+      return;
+    }
+    const tile = this.getTile(x, y);
+    if (tile === TILE.WARP) { if (this.onWarp) this.onWarp(); return; }
+    if (this.onEncounter && encounter.checkEncounter(tile)) {
+      setTimeout(() => this.onEncounter(), 150);
+    }
+  }
+
+  _genTreasures() {
+    this.treasures = new Set();
+    if (!this.player) return;
+    const map = MAPS[this.player.areaId] || MAPS['area_01'];
+    const open = [];
+    for (let r = 0; r < map.length; r++) {
+      for (let col = 0; col < map[0].length; col++) {
+        if ((map[r][col] === TILE.GRASS || map[r][col] === TILE.PATH) &&
+            !(col === this.player.x && r === this.player.y)) {
+          open.push([col, r]);
+        }
+      }
+    }
+    const n = Math.min(4, open.length);
+    for (let i = 0; i < n; i++) {
+      const idx = Math.floor(Math.random() * open.length);
+      const cell = open.splice(idx, 1)[0];
+      this.treasures.add(cell[0] + ',' + cell[1]);
+    }
+  }
+
+  _drawTreasures(c, camX, camY, W, H) {
+    if (!this.treasures) return;
+    c.font = '26px serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    const bob = Math.sin(this.frameCount * 0.12) * 2;
+    this.treasures.forEach(key => {
+      const parts = key.split(',');
+      const tx = Number(parts[0]), ty = Number(parts[1]);
+      const sx = tx * TILE_SIZE - camX + TILE_SIZE / 2;
+      const sy = ty * TILE_SIZE - camY + TILE_SIZE / 2 + bob;
+      if (sx < -TILE_SIZE || sx > W + TILE_SIZE || sy < -TILE_SIZE || sy > H + TILE_SIZE) return;
+      const pulse = 0.4 + 0.4 * Math.sin(this.frameCount * 0.1);
+      c.fillStyle = 'rgba(255,215,0,' + (pulse * 0.5) + ')';
+      c.beginPath(); c.arc(sx, sy, 15, 0, Math.PI * 2); c.fill();
+      c.fillText('💎', sx, sy);
+    });
   }
 
   _setupTouchKeys() {

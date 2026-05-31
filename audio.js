@@ -38,6 +38,18 @@ class AudioManager {
     osc.stop(start + dur + 0.01);
   }
 
+  _playTrack(notes, beat, type, vol, when, gap) {
+    if (gap === undefined) gap = 0.92;
+    let t = when;
+    for (let k = 0; k < notes.length; k++) {
+      const f = notes[k][0], b = notes[k][1];
+      const d = b * beat;
+      if (f > 0) this._note(f, t, d * gap, type, vol);
+      t += d;
+    }
+    return t - when;
+  }
+
   stopBGM() {
     if (this.bgmInterval) { clearInterval(this.bgmInterval); this.bgmInterval = null; }
     if (this.bgmTimeout) { clearTimeout(this.bgmTimeout); this.bgmTimeout = null; }
@@ -74,23 +86,39 @@ class AudioManager {
     if (!this.enabled) return;
     this.stopBGM();
     this.currentBGM = 'field';
+    // 六層序曲 — 堂々としたドラクエ風オーバーチュア（G major）
+    const beat = 0.34;
     const melody = [
-      392,0, 440,0, 494,0, 523,0, 494,0, 440,0,
-      392,0, 330,0, 349,0, 392,0, 440,0, 494,0,
-      523,0, 587,0, 523,0, 494,0
+      [392,2],[587,2],
+      [523,1],[494,1],[523,1],[587,1],
+      [494,2],[440,2],
+      [392,4],
+      [440,2],[523,2],
+      [587,1],[523,1],[494,1],[440,1],
+      [494,2],[587,2],
+      [392,4]
     ];
-    const bass = [196,0,220,0,247,0,262,0,247,0,220,0,196,0,165,0,175,0,196,0,220,0,247,0,262,0,294,0,262,0,247,0];
-    const tempo = 0.18;
+    const harmony = [
+      [294,2],[440,2],
+      [392,1],[392,1],[392,1],[440,1],
+      [370,2],[330,2],
+      [294,4],
+      [330,2],[392,2],
+      [440,1],[392,1],[370,1],[330,1],
+      [370,2],[440,2],
+      [294,4]
+    ];
+    const bass = [
+      [196,2],[147,2],[131,2],[196,2],[165,2],[147,2],[196,2],[196,2],
+      [220,2],[131,2],[147,2],[196,2],[165,2],[147,2],[196,2],[196,2]
+    ];
     const playLoop = () => {
       if (this.currentBGM !== 'field') return;
-      const now = this.ctx.currentTime;
-      melody.forEach((freq, i) => {
-        if (freq > 0) this._note(freq, now + i * tempo, tempo * 0.85, 'square', 0.15);
-      });
-      bass.forEach((freq, i) => {
-        if (freq > 0) this._note(freq, now + i * tempo, tempo * 1.8, 'triangle', 0.1);
-      });
-      this.bgmTimeout = setTimeout(playLoop, melody.length * tempo * 1000);
+      const now = this.ctx.currentTime + 0.05;
+      const total = this._playTrack(melody, beat, 'square', 0.16, now, 0.9);
+      this._playTrack(harmony, beat, 'triangle', 0.07, now, 0.95);
+      this._playTrack(bass, beat, 'triangle', 0.12, now, 0.98);
+      this.bgmTimeout = setTimeout(playLoop, total * 1000);
     };
     playLoop();
   }
@@ -476,20 +504,45 @@ class AudioManager {
     if (!this.enabled) return;
     this.stopBGM();
     this.currentBGM = 'battle';
+    // 魔物との対決 — 疾走感のあるバトルテーマ（A minor）
+    const beat = 0.155;
     const melody = [
-      523,0,587,0,659,0,523,0,
-      466,0,523,0,587,0,466,0,
-      415,0,466,0,523,0,415,0,
-      392,0,440,0,494,0,392,0
+      [440,1],[523,1],[659,1],[523,1],
+      [440,1],[523,1],[659,1],[698,1],
+      [659,1],[587,1],[523,1],[494,1],
+      [440,2],[0,2],
+      [440,1],[523,1],[659,1],[523,1],
+      [440,1],[659,1],[880,1],[659,1],
+      [698,1],[659,1],[587,1],[523,1],
+      [440,2],[0,2]
     ];
-    const tempo = 0.14;
+    const arp = [
+      [440,1],[523,1],[659,1],[523,1],
+      [440,1],[523,1],[659,1],[523,1],
+      [392,1],[494,1],[587,1],[494,1],
+      [440,1],[523,1],[659,1],[523,1],
+      [440,1],[523,1],[659,1],[523,1],
+      [440,1],[523,1],[659,1],[523,1],
+      [349,1],[440,1],[523,1],[440,1],
+      [440,1],[523,1],[659,1],[523,1]
+    ];
+    const bass = [
+      [110,1],[110,1],[110,1],[110,1],
+      [110,1],[110,1],[110,1],[110,1],
+      [98,1],[98,1],[98,1],[98,1],
+      [110,1],[110,1],[110,1],[110,1],
+      [110,1],[110,1],[110,1],[110,1],
+      [110,1],[110,1],[110,1],[110,1],
+      [87,1],[87,1],[87,1],[87,1],
+      [110,1],[110,1],[110,1],[110,1]
+    ];
     const playLoop = () => {
       if (this.currentBGM !== 'battle') return;
-      const now = this.ctx.currentTime;
-      melody.forEach((freq, i) => {
-        if (freq > 0) this._note(freq, now + i * tempo, tempo * 0.8, 'sawtooth', 0.12);
-      });
-      this.bgmTimeout = setTimeout(playLoop, melody.length * tempo * 1000);
+      const now = this.ctx.currentTime + 0.05;
+      const total = this._playTrack(melody, beat, 'square', 0.14, now, 0.85);
+      this._playTrack(arp, beat, 'triangle', 0.06, now, 0.7);
+      this._playTrack(bass, beat, 'sawtooth', 0.10, now, 0.6);
+      this.bgmTimeout = setTimeout(playLoop, total * 1000);
     };
     playLoop();
   }

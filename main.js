@@ -71,6 +71,7 @@ class Game {
   _setupField() {
     this.mapManager.onEncounter = () => this._startEncounter();
     this.mapManager.onWarp = () => this._doWarp();
+    this.mapManager.onTreasure = () => this._openTreasure();
     document.getElementById('btn-book').addEventListener('click', () => this._openBook());
     document.getElementById('btn-menu').addEventListener('click', () => this._saveGame());
   }
@@ -94,13 +95,13 @@ class Game {
   }
 
   _startEncounter() {
-    const quiz = encounter.pickQuiz(this.player.areaId);
-    if (!quiz) return;
+    const monster = encounter.pickMonster(this.player.areaId);
+    if (!monster) return;
     this._flashEncounter(() => {
       audio.seEncounter();
       this.mapManager.stop();
       this.showScreen('battle');
-      battle.start(quiz, this.player, (result) => this._onBattleEnd(result));
+      battle.start(this.player, this.player.areaId, monster, (result) => this._onBattleEnd(result));
     });
   }
 
@@ -122,26 +123,13 @@ class Game {
   }
 
   _onBattleEnd(result) {
-    if (result.isCorrect) {
-      this.player.correctCount++;
-      this.player.recordDefeat(result.quiz.monster);
-      const lvResult = this.player.addExp(result.expGain);
-      Storage.save(this.player.toSaveData());
-      if (lvResult) {
-        this._showLevelUp(lvResult);
-      } else {
-        this._returnToField();
-      }
-    } else {
-      this.player.wrongCount++;
-      const dead = this.player.takeDamage(result.damage);
-      Storage.save(this.player.toSaveData());
-      if (dead) {
-        this._showGameOver();
-      } else {
-        this._returnToField();
-      }
-    }
+    Storage.save(this.player.toSaveData());
+    if (result.result === 'lose') { this._showGameOver(); return; }
+    this.player.recordDefeat(result.monster);
+    const lvResult = this.player.addExp(result.expGain);
+    Storage.save(this.player.toSaveData());
+    if (lvResult) this._showLevelUp(lvResult);
+    else this._returnToField();
   }
 
   _returnToField() {
@@ -159,6 +147,14 @@ class Game {
     Storage.save(this.player.toSaveData());
     audio.seWarp();
     this._showFieldMsg(`${nextArea.name}に　はいった！`);
+  }
+
+  _openTreasure() {
+    const heal = Math.max(8, Math.ceil(this.player.hpMax * 0.35));
+    this.player.heal(heal);
+    Storage.save(this.player.toSaveData());
+    this._updateStatusBar();
+    this._showFieldMsg(`\u2728 たからばこを　あけた！\nHPが　${heal}　かいふくした！`, 2200);
   }
 
   _showFieldMsg(text, duration = 2500) {
